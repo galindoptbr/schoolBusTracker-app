@@ -16,7 +16,7 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   }
 
   if (!user) {
-    return <Redirect href="/auth/login" />;
+    return <Redirect href="/login" />;
   }
 
   return <>{children}</>;

@@ -1,46 +1,62 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+import { useRouter } from "expo-router";
 import {
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   onAuthStateChanged,
   User,
 } from "firebase/auth";
-import { auth } from "../services/firebaseConfig";
+import { auth, db } from "../services/firebase";
+import { doc, getDoc } from "firebase/firestore";
+
+interface UserData {
+  name?: string;
+  email?: string;
+}
 
 const useAuth = () => {
-  const [user, setUser] = useState<User | null>(null); // Adicionar o estado do usuário
+  const router = useRouter();
+  const [loading, setLoading] = useState(true);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [user, setUser] = useState<User | null>(null);
+  const [userData, setUserData] = useState<UserData | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  // Monitorar o estado do usuário
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-      setUser(currentUser);
+    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+      try {
+        if (currentUser) {
+          setIsAuthenticated(true);
+          setUser(currentUser);
+
+          // Buscar dados adicionais do usuário na coleção do Firestore
+          const userDocRef = doc(db, "users", currentUser.uid);
+          const userDocSnap = await getDoc(userDocRef);
+
+          if (userDocSnap.exists()) {
+            setUserData(userDocSnap.data() as UserData);
+          }
+        } else {
+          setIsAuthenticated(false);
+          setUser(null);
+          setUserData(null);
+        }
+      } catch (error) {
+        console.error("Erro ao buscar dados do usuário:", error);
+        setError("Erro ao buscar dados do usuário.");
+      } finally {
+        setLoading(false); // Atualizando para indicar que o carregamento foi finalizado
+      }
     });
 
-    // Limpar o listener quando o componente desmontar
     return () => unsubscribe();
   }, []);
 
-  const signup = async (email: string, password: string) => {
-    try {
-      await createUserWithEmailAndPassword(auth, email, password);
-    } catch (err: any) {
-      setError(err.message);
-    }
-  };
-
-  const login = async (email: string, password: string) => {
-    try {
-      await signInWithEmailAndPassword(auth, email, password);
-    } catch (err: any) {
-      setError(err.message);
-    }
-  };
-
   return {
-    user, // Agora temos a propriedade `user` que pode ser usada em `ProtectedRoute`
-    signup,
-    login,
+    loading,
+    isAuthenticated,
+    user,
+    userData,
     error,
   };
 };
