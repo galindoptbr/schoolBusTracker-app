@@ -19,7 +19,7 @@ const MenuPage: React.FC = () => {
   }
 
   return (
-    <View style={{ flex: 1, padding: 24 }}>
+    <View style={{ flex: 1, padding: 24, backgroundColor: "white" }}>
       {/* Header da Página */}
       <View
         style={{

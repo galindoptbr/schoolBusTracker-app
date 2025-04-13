@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from "react";
-import { View, Text, TouchableOpacity, FlatList } from "react-native";
-import { collection, getDocs, doc, updateDoc } from "firebase/firestore";
+import { View, Text, TouchableOpacity, FlatList, Alert } from "react-native";
+import { collection, getDocs, doc, updateDoc, arrayRemove } from "firebase/firestore";
 import { db } from "../services/firebase";
 import useAuth from "../hooks/useAuth";
 import LocationTracker from "./LocationTracker";
 import LogoutButton from "./LogoutButton";
+import MenuButton from "./MenuButton";
 
 interface Child {
   name: string;
@@ -97,6 +98,44 @@ const DriverProfile: React.FC = () => {
     }
   };
 
+  const handleRemoveChild = (childIndex: number) => {
+    Alert.alert(
+      "Confirmar Remoção",
+      "Você tem certeza que deseja remover esta criança da lista?",
+      [
+        {
+          text: "Cancelar",
+          style: "cancel",
+        },
+        {
+          text: "Remover",
+          style: "destructive",
+          onPress: async () => {
+            if (user) {
+              try {
+                const childToRemove = childrenList[childIndex];
+                const updatedChildren = childrenList.filter((_, index) => index !== childIndex);
+                setChildrenList(updatedChildren);
+
+                // Atualizar o Firestore para remover a criança
+                const userDocRef = doc(db, "users", user.uid);
+                await updateDoc(userDocRef, {
+                  children: arrayRemove({
+                    name: childToRemove.name,
+                    age: childToRemove.age,
+                    driverId: childToRemove.driverId,
+                  }),
+                });
+              } catch (error) {
+                console.error("Erro ao remover criança do Firestore:", error);
+              }
+            }
+          },
+        },
+      ]
+    );
+  };
+
   return (
     <View
       style={{
@@ -107,7 +146,9 @@ const DriverProfile: React.FC = () => {
         padding: 20,
       }}
     >
-      <LogoutButton />
+      <View style={{position: "absolute", top: 5, left: 15}}>
+        <MenuButton />
+      </View>
       <View
         style={{
           width: "100%",
@@ -147,8 +188,7 @@ const DriverProfile: React.FC = () => {
               }}
             >
               <Text style={{ flex: 1, fontSize: 16 }}>
-                <Text style={{ fontWeight: "bold" }}>Nome:</Text> {item.name} |{" "}
-                <Text style={{ fontWeight: "bold" }}>Idade:</Text> {item.age}
+                <Text style={{ fontWeight: "bold" }}>Nome:</Text> {item.name}
               </Text>
               <TouchableOpacity
                 onPress={() => handleCheckIn(index)}
@@ -157,12 +197,24 @@ const DriverProfile: React.FC = () => {
                   paddingHorizontal: 10,
                   borderRadius: 5,
                   backgroundColor: item.checkedIn ? "#22c55e" : "#3b82f6",
+                  marginRight: 10,
                 }}
                 disabled={item.checkedIn}
               >
                 <Text style={{ color: "white", fontWeight: "bold" }}>
-                  {item.checkedIn ? "Presente" : "Dar Check-in"}
+                  {item.checkedIn ? "Na Carrinha" : "Compartilhar"}
                 </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => handleRemoveChild(index)}
+                style={{
+                  paddingVertical: 5,
+                  paddingHorizontal: 10,
+                  borderRadius: 5,
+                  backgroundColor: "#ef4444",
+                }}
+              >
+                <Text style={{ color: "white", fontWeight: "bold" }}>X</Text>
               </TouchableOpacity>
             </View>
           )}
